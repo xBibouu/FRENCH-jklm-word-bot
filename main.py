@@ -14,8 +14,22 @@ instant_typing = False
 pyautogui.PAUSE = 0
 used_words = set()
 
-with open('wordlist.txt') as word_file:
+word_file_path = ''#path of ur worldlist | chemin d'accès de ta worldlist
+if not os.path.exists(word_file_path):
+    print("Le fichier de mots n'existe pas.")
+    sys.exit(1)
+
+with open(word_file_path) as word_file:
     valid_words = word_file.read().split()
+
+used_words_file_path = 'used_words.txt'
+if os.path.exists(used_words_file_path):
+    with open(used_words_file_path) as used_file:
+        used_words = set(used_file.read().split())
+
+def save_used_words():
+    with open(used_words_file_path, 'w') as used_file:
+        used_file.write('\n'.join(used_words))
 
 def release(key):
     global bomb_x, bomb_y, used_words
@@ -23,8 +37,8 @@ def release(key):
         try:
             bomb_x, bomb_y = pyautogui.position()
         except Exception as err:
-            print(f"Error getting mouse position: {err}")
-    if key == Key.f4:
+            print(f"Erreur lors de l'obtention de la position de la souris : {err}")
+    if key == Key.f9:
         try:
             pyautogui.click(x=bomb_x, y=bomb_y, clicks=2)
             with pyautogui.hold('ctrl'):
@@ -33,36 +47,37 @@ def release(key):
             time.sleep(0.1)
             syllable = pyperclip.paste().lower().strip()
             pyperclip.copy('')
+            
             found_words = [word for word in valid_words if syllable in word]
             
             if not found_words:
-                print("No words were found.")
+                print("Aucun mot trouvé.")
                 return
 
             if long_words:
                 found_words.sort(key=len, reverse=True)
-            
-            final_word = random.choice(found_words)
-            while final_word in used_words:
-                if len(used_words) == len(found_words):
-                    print("All words have been used.")
+
+            for word in found_words:
+                if word not in used_words:
+                    final_word = word
+                    used_words.add(final_word)
+                    save_used_words()  
+                    
+                    if instant_typing:
+                        pyperclip.copy(final_word)
+                        with pyautogui.hold('ctrl'):
+                            pyautogui.press('v')
+                    else:
+                        for char in final_word:
+                            delay = random.choice(delays)
+                            pyautogui.write(char, delay)
+                    time.sleep(0.1)
+                    pyautogui.press('enter')
                     return
-                final_word = random.choice(found_words)
-            
-            used_words.add(final_word)
-            
-            if instant_typing:
-                pyperclip.copy(final_word)
-                with pyautogui.hold('ctrl'):
-                    pyautogui.press('v')
-            else:
-                for char in final_word:
-                    delay = random.choice(delays)
-                    pyautogui.write(char, delay)
-            time.sleep(0.1)
-            pyautogui.press('enter')
+
+            print("Tous les mots ont été utilisés.")
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"Erreur : {e}")
 
 with Listener(on_release=release) as listener:
     listener.join()
